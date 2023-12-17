@@ -1,0 +1,59 @@
+---
+title: "Testing some crystals"
+author: "Erik Ø. Sørensen"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+
+
+```{r}
+df <- read_csv("2023-12-17_crystals.csv")
+```
+
+The formulas for the crystal motional parameters are 
+$$C_m = \frac{2(C_s+C_0)\Delta f}{f} $$ and
+$$L_m = \frac{1}{(2\pi f)^2C_m}.$$
+I have measured 9 crystals that are nominally 10 MHz.
+I have also measured the additional capacitance added by the tester to 37 pF. 
+
+The crystals themselves (sourced from ebay) seem to resonate a bit below 10MHz:
+
+```{r}
+df |> ggplot(aes(x=f0)) + 
+  geom_histogram(bins=3) + 
+  labs(x = "Resonance [MHz]") +
+  theme_minimal() +
+  theme(plot.title.position = "plot")
+```
+
+
+
+The formulas for the motional parameters can be coded as
+```{r}
+cm <- function(cs, c0, f0, f1)  {
+  2 * (cs+c0)*(1e-12)*(f1-f0)*1e6 / (f0*1e6)
+}
+lm <- function(cs, c0, f0, f1) {
+  cms <- cm(cs, c0, f0, f1)
+  1 / ( (2*pi * f0 *1e6)^2 *cms)
+}
+```
+
+Now, let's try to graph these parameters
+```{r}
+df_cm <- df |> mutate(Cm = cm(37,cp,f0,f1),
+                   Lm = lm(37,cp,f0,f1))
+df_cm |> ggplot(aes(x = Lm * 1e3, y = Cm*1e15)) +
+  geom_point() + 
+  theme_minimal() +
+  theme(plot.title.position = "plot") +
+  labs(x = "Lm [mH]", y = "Cm [fF]", title="Motional parameters for 9 crystals (10Mhz)")
+ggsave("../graphics/first_test.png")
+```
+
